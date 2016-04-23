@@ -233,7 +233,7 @@ int main(int argc, char ** argv)
     }
     
     // Set a signal handler so the server can be stopped with Ctrl-C
-    signal(SIGINT, );
+    signal(SIGINT, handleSIGINT);
     // Now we are set up to take connections. Start a thread for each.
     
     while (!shutdown)
