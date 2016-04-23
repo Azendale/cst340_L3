@@ -17,7 +17,44 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "shared.h"
+#include "list.h"
+#define BUFFSIZE 256
+
+typedef struct 
+{
+	linked_list_t connections;
+	int64_t clientFd;
+} thread_data_t;
+
+typedef struct thisstruct
+{
+	pthread_t threadId;
+	thisstruct * next;
+} thread_list_node;
+
+// Only written by main thread, and only set by main thread independent of previous value
+// Read by other threads: if they see it as true, they attempt to shutdown at the next chance
+bool shutdown;
+
+void handleSIGINT(int sig)
+{
+	// Set the stop signal
+	shutdown = true;
+}
+
+int fdRemoveCompare(int64_t data, void * userData)
+{
+	int64_t valueToRemove = *(int64_t *)userData;
+	
+	if (valueToRemove == data)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
 
 // Uses getopt style arguments to get the port number, as a cstring
 // don't need to free returned pointer as it points to argv
@@ -40,179 +77,90 @@ char * getPortString(int argc, char ** argv)
     return portString;
 }
 
+typedef struct
+{
+	char * messageBuf;
+	int messageBufUsed;
+} write_message_data;
+
+void writeMessage(int64_t outFd, void * userData)
+{
+	int messageBufUsed = ((write_message_data *)userData)->messageBufUsed;
+	char* messageBuf = ((write_message_data *)userData)->messageBuf;
+	int messageBufWritten = 0;
+	int writtenThisRound = 0;
+	while (messageBufWritten < messageBufUsed &&
+		0 < (writtenThisRound = write(outFd, messageBuf, messageBufUsed-messageBufWritten))
+	)
+	{
+		messageBufWritten += writtenThisRound;
+	}
+	fprintf(stderr, "Error writing to fd %d.\n", outFd);
+}
+
 // Serve a new connection. void * arg is actually a file descriptor for the new
 // connection
 void * ThreadServeConnection(void * arg)
 {
-    int acceptFd = (int)((long)arg);
+	// Needs to have all fds, as well as ours specifically
+	thread_data_t * threadData = (thread_data_t *)arg;
     
-    // Start by reading
-    // loop until quit command
-    bool continueLoop = true;
-    // Can't directly include a literal, because setting socket opts needs the 
-    // address of
-    int corkFlag;
-    // File we read to or from
-    int fileFD;
-    // memory (so read/write can operate on it) that holds command flags
-    uint16_t messageBuffer = 0;
-    char * filename = NULL;
-    struct stat trustedSt;
-    bool bailOut = false;
-    while (continueLoop)
-    {
-        memset(&trustedSt, 0, sizeof(trustedSt));
-        bailOut = false;
-        
-        // Find out what the client wants
-        if (sizeof(messageBuffer) != read(acceptFd, &messageBuffer, sizeof(messageBuffer)))
-        {
-            fprintf(stderr, "Couldn't read command flag client sent.\n");
-            bailOut = true;
-            continueLoop = false;
-        }
-        
-        if (!bailOut)
-        {
-            messageBuffer = ntohs(messageBuffer);
-            if (OFTP_C_QUIT == messageBuffer)
-            {
-                fprintf(stderr, "Client sent quit command, exiting thread.\n");
-                continueLoop = false;
-            }
-            else if (OFTP_C_GET == messageBuffer)
-            {
-                // Get file name they want from the connection
-                if (NULL == (filename = getFname(acceptFd)))
-                {
-                    fprintf(stderr, "Couldn't read filename the client wanted.\n");
-                    bailOut = true;
-                }
-                
-                // Open the file they want
-                if (!bailOut && -1 == (fileFD = open(filename, O_RDONLY)))
-                {
-                    fprintf(stderr, "Couldn't open for reading the file the client requested.\n");
-                    // Couldn't open file error
-                    messageBuffer = OFTP_R_NOSUCHFILE;
-                    messageBuffer = htons(messageBuffer);
-                    if (sizeof(messageBuffer) != write(acceptFd, &messageBuffer, sizeof(messageBuffer)))
-                    {
-                        // Wow, even giving an error failed. Give up on the connection
-                        fprintf(stderr, "Couldn't even send client error that their request won't work on the file the requested because we can't open it.\n");
-                        continueLoop = false;
-                    }
-                    // Either way, give up on this command
-                    bailOut = true;
-                }
-                if (!bailOut && -1 == fstat(fileFD, &trustedSt))
-                {
-                    fprintf(stderr, "Couldn't fstat the file the client requested.\n");
-                    // Couldn't open file error
-                    messageBuffer = OFTP_R_NOSUCHFILE;
-                    messageBuffer = htons(messageBuffer);
-                    if (sizeof(messageBuffer) != write(acceptFd, &messageBuffer, sizeof(messageBuffer)))
-                    {
-                        // Wow, even giving an error failed. Give up on the connection
-                        fprintf(stderr, "Couldn't even send client error that their request won't work on the file the requested because we can't fstat it.\n");
-                        continueLoop = false;
-                    }
-                    // Either way, give up on this command
-                    bailOut = true;
-                }
-                
-                if (!bailOut)
-                {
-                    // Cork -- we are going to send a response followed by bulk
-                    // data -- tell the kernel to hold our packets for up to
-                    // 200ms while we pack them to full size
-                    corkFlag = 1;
-                    // Corking is not mandatory, so just print an error if something goes wrong
-                    if (setsockopt(acceptFd, IPPROTO_TCP, TCP_CORK, &corkFlag, sizeof(corkFlag)) == -1)
-                    {
-                        perror("setsockopt(TCP_CORK)");
-                        fprintf(stderr, "Couldn't set cork flag on the socket for get request.\n");
-                        bailOut = true;
-                    }
-                }
-                    
-                // Send reply OFTP_R_OKFILENEXT with size
-                if (!bailOut)
-                {
-                    messageBuffer = htons(OFTP_R_OKFILENEXT);
-                    if (sizeof(messageBuffer) != write(acceptFd, &messageBuffer, sizeof(messageBuffer)))
-                    {
-                        fprintf(stderr, "Couldn't send client the 'ok here comes the file you wanted message' in response to their get request.\n");
-                        bailOut = true;
-                    }
-                }
-                
-                
-                // Send the actual file
-                if (!bailOut && SendAFile(acceptFd, fileFD, trustedSt.st_size))
-                {
-                    fprintf(stderr, "Couldn't send the whole file the client requested.\n");
-                    bailOut = true;
-                }
-                
-                // We are done actively using the connection for a while, let
-                // don't make the kernel wait wait for us to fill the packets
-                corkFlag = 0;
-                if (setsockopt(acceptFd, IPPROTO_TCP, TCP_CORK, &corkFlag, sizeof(corkFlag)) == -1)
-                {
-                    perror("setsockopt(TCP_CORK)");
-                }
-                
-                close(fileFD);
-                free(filename);
-                filename = NULL;
-            }
-            else if (OFTP_C_PUT == messageBuffer)
-            {
-                // Can't use sendfile, so:
-                // Find out filename
-                if (NULL == (filename = getFname(acceptFd)))
-                {
-                    fprintf(stderr, "Couldn't read the file name of the file the client is going to send.\n");
-                    bailOut = true;
-                }
-                
-                // open dest file
-                if(!bailOut && -1 == (fileFD = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)))
-                {
-                    // Couldn't open file, send error to client, no write access
-                    fprintf(stderr, "Couldn't open local file for storing what was sent by the client.\n");
-                    bailOut = true;
-                }
-                
-                // Actually recieve the file
-                if (!bailOut && ReceiveAFile(acceptFd, fileFD))
-                {
-                    fprintf(stderr, "Couldn't recieve the file put by the client.\n");
-                    bailOut = true;
-                    continueLoop = false;
-                }
-                
-                close(fileFD);
-                free(filename);
-                filename = NULL;
-            }
-            else
-            {
-                fprintf(stderr, "Command sent by the client not recognized: %d.\n", messageBuffer);
-                // Unknown command
-                continueLoop = false;
-            }
-        }
-    }
+    // Client we read from
+    int clientSocket = threadData->clientFd;
+	
+	// All clients list, which we will broadcast message to.
+	linked_list_t connections = threadData->connections;
+	
+	// Our buffer for copying
+	char copyBuffer[BUFFSIZE];
+	int copyBufferUsed = 0;
+	bool continueThread = true;
+	
+	// while there is still stuff to read from the client and the server isn't trying to shut down
+	// try to read buffersize and set buffer used based on result
+	while (!shutdown &&(0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE)))
+	{
+		write_message_data writeInfo;
+		writeInfo->messageBuf = copyBuffer;
+		writeInfo->messageBufUsed = copyBufferUsed;
+		// Attempt to write that buffer to each connection:
+		if (0 != Traverse(connections, writeMessage, &writeInfo))
+		{
+			fprintf(stderr, "Error while trying to traverse connections list to write message from thread %ld", pthread_self());
+		}
+	}
+	if (copyBufferUsed < 0)
+	{
+		fprintf(stderr, "Error while trying to read from client socket fd %d, thread %ld, closing that connection.\n", clientSocket, pthread_self());
+	}
     
-    close(acceptFd);
+	// Remove the fd from the list
+	if (1 != DeleteItems(connections, fdRemoveCompare, &(threadData->clientFd)))
+	{
+		fprintf(stderr, "Warning, thread %ld did not remove 1 item from connections list when it tried to remove fd %d\n.", pthread_self(), threadData->clientFd);
+	}
+	
+	// Close the fd
+    close(threadData->clientFd);
+	
+	free(threadData);
     return NULL;
 }
 
 int main(int argc, char ** argv)
 {
+	fprint("Server starting, version " GIT_VERSION "\n");
+	shutdown = false;
     char * portString = getPortString(argc, argv);
+	
+	linked_list_t connections = Init_List();
+	if (NULL == connections)
+	{
+        fprintf(stderr, "Trouble creating clients tracking list.\n");
+		exit(3);
+	}
+	
+	thread_list_node threads = NULL;
     
     // Gives getaddrinfo hints about the critera for the addresses it returns
     struct addrinfo hints;
@@ -284,13 +232,11 @@ int main(int argc, char ** argv)
         exit(32);
     }
     
+    // Set a signal handler so the server can be stopped with Ctrl-C
+    signal(SIGINT, );
     // Now we are set up to take connections. Start a thread for each.
     
-    
-    // This part seems scary. I have a loop that never ends that allocates memory. Nothing could go wrong, right?
-    bool continueLoop = true;
-    pthread_t tid;
-    while (continueLoop)
+    while (!shutdown)
     {
        int acceptfd = -1; 
         if (-1 == (acceptfd = accept(sockfd, NULL, NULL)))
@@ -302,17 +248,46 @@ int main(int argc, char ** argv)
                 || EHOSTUNREACH == errno || EOPNOTSUPP == errno || ENETUNREACH))
             {
                 // Something the man page didn't list went wrong, let's give up
-                continueLoop = false;
+                shutdown = true;
             }
         }
         else
         {
-            pthread_create(&tid, NULL, ThreadServeConnection, (void *)(long)acceptfd);
-            // Set detach because we aren't going to track these threads, and we
-            // want associated memory freed when they quit
-            pthread_detach(tid);
+			thread_data_t * threadData = (thread_data_t *)malloc(sizeof(thread_data_t));
+			thread_list_node * thisThread = (thread_list_node *)malloc(sizeof(thread_list_node));
+			if (NULL != threadData && NULL != thisThread)
+			{
+				thisThread->next = threads;
+				threadData->clientFd = acceptfd;
+				threadData->connections = connections;
+				pthread_create(&(thisThread->threadId), NULL, ThreadServeConnection, threadData);
+				// Now we have a valid thread, add it to the list of ones we'll wait for
+				threads = thisThread;
+			}
+			else if (threadData)
+			{
+				free(threadData);
+			}
+			else // One of them was NULL, and it wasn't threadData, so it must be thisThread
+			{
+				free(thisThread);
+			}
         }
     }
+	
+	// Now in shutdown mode
+	// Clean up thread data
+    while (threads)
+	{
+		thread_list_node thisthread = threads;
+		threads = threads->next;
+		if (pthread_join(thisthread->threadId, NULL) != 0)
+		{
+			fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthreadid);
+		}
+		free(thisthread);
+	}
+
         
     pthread_exit(0);
     return 0;

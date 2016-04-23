@@ -1,25 +1,26 @@
 #**************************************************
-# Makefile for Threaded List lab
+# Makefile for threaded chat server lab
+# Erik Andersen
 #
-# Author: Philip Howard
-# Email:  phil.howard@oit.edu
-# Date:   Feb. 20, 2016
-#
-COPTS = -g -O0 -Wall -pthread -std=gnu99
+GIT_VERSION := $(shell git describe --abbrev=16 --dirty="-uncommitted" --always --tags)
+CFLAGS=-Wall -Wshadow -Wunreachable-code -Wredundant-decls -DGIT_VERSION=\"$(GIT_VERSION)\" -std=gnu99 -g -O0
+CC = gcc
 
 OBJS = list.o \
-       sequence.o \
-       main.o \
 
-all: threads
+all: client server
 
 clean:
-	rm -f threads
+	rm -f server
+	rm -f client
 	rm -f *.o
 
 .c.o:
-	gcc $(COPTS) -c $? -o $@
+	$(CC) $(COPTS) -c $? -o $@
 
-threads: $(OBJS)
-	gcc $(COPTS) $(OBJS) -o threads
+server: $(OBJS)
+	$(CC) $(COPTS) $(OBJS) -o server
+
+client: $(OBJS)
+	$(CC) $(COPTS) $(OBJS) -o client
 
