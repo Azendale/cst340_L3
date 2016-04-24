@@ -32,21 +32,21 @@ int Delete_List(linked_list_t list);
 // Return the size of the list
 // Params:
 //    list: the list to return the size of
-int64_t Count(linked_list_t list);
+int Count(linked_list_t list);
 
 // Insert an item at the beginning of the list
 // Return zero on success
 // Params:
 //    list: list to add item to
 //    data: value to be stored in the list
-int Insert_At_Beginning(linked_list_t list, int64_t data);
+int Insert_At_Beginning(linked_list_t list, int data);
 
 // Insert an item at the end of the list
 // Return zero on success
 // Params:
 //    list: list to add item to
 //    data: value to be stored in the list
-int Insert_At_End(linked_list_t list, int64_t data);
+int Insert_At_End(linked_list_t list, int data);
 
 // Return true (non-zero) if the list is empty
 //    list: list to examine
@@ -58,7 +58,7 @@ int Empty(linked_list_t list);
 //    list: list to remove item from
 //    data: pointer to location to store data of removed item
 //          if data is NULL, data is not returned
-int Remove_From_Beginning(linked_list_t list, int64_t* data);
+int Remove_From_Beginning(linked_list_t list, int* data);
 
 // Remove an item from the end of the list 
 // Return zero on success
@@ -66,7 +66,7 @@ int Remove_From_Beginning(linked_list_t list, int64_t* data);
 //    list: list to remove item from
 //    data: pointer to location to store data of removed item
 //          if data is NULL, data is not returned
-int Remove_From_End(linked_list_t list, int64_t *data);
+int Remove_From_End(linked_list_t list, int *data);
 
 // Iterate through the list. Call a function on the data from each node.
 // Return zero on success
@@ -75,7 +75,7 @@ int Remove_From_End(linked_list_t list, int64_t *data);
 //    action: The function to call for each node
 //         data: The data stored at the node being acted on
 //         userData: opaque pointer for any data the user supplied function may need
-int Traverse(linked_list_t list, void (*action)(int64_t data, void * userData), void * userData);
+int Traverse(linked_list_t list, void (*action)(int data, void * userData), void * userData);
 
 // Iterate through the list. Call a function on the data from each node
 // to decide if we should remove the node, and remove the node if the
@@ -86,7 +86,7 @@ int Traverse(linked_list_t list, void (*action)(int64_t data, void * userData), 
 //    deleteTest: The function to call for each node
 //         data: The data stored at the node being acted on
 //         userData: opaque pointer for any data the user supplied function may need
-int DeleteItemsFilter(linked_list_t list, int (*deleteTest)(int64_t data, void * userData), void * userData);
+int DeleteItemsFilter(linked_list_t list, int (*deleteTest)(int data, void * userData), void * userData);
 
 // Insert a value into the list in sorted order
 // This function performs an insertion sort
@@ -94,4 +94,4 @@ int DeleteItemsFilter(linked_list_t list, int (*deleteTest)(int64_t data, void *
 // Params:
 //    list: List to insert the value into
 //    value: The value to be inserted
-int Insert_In_Order(linked_list_t list, int64_t value);
+int Insert_In_Order(linked_list_t list, int value);

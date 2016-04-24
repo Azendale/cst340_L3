@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
+#include <stdio.h>
 
 #include "list.h"
 #define BUFFSIZE 256
@@ -116,15 +117,14 @@ void * ThreadServeConnection(void * arg)
 	// Our buffer for copying
 	char copyBuffer[BUFFSIZE];
 	int copyBufferUsed = 0;
-	bool continueThread = true;
 	
 	// while there is still stuff to read from the client and the server isn't trying to shut down
 	// try to read buffersize and set buffer used based on result
 	while (!serverShutdown &&(0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE))))
 	{
 		write_message_data writeInfo;
-		writeInfo->messageBuf = copyBuffer;
-		writeInfo->messageBufUsed = copyBufferUsed;
+		writeInfo.messageBuf = copyBuffer;
+		writeInfo.messageBufUsed = copyBufferUsed;
 		// Attempt to write that buffer to each connection:
 		if (0 != Traverse(connections, writeMessage, &writeInfo))
 		{
@@ -137,7 +137,7 @@ void * ThreadServeConnection(void * arg)
 	}
     
 	// Remove the fd from the list
-	if (1 != DeleteItems(connections, fdRemoveCompare, &(threadData->clientFd)))
+	if (1 != DeleteItemsFilter(connections, fdRemoveCompare, &(threadData->clientFd)))
 	{
 		fprintf(stderr, "Warning, thread %ld did not remove 1 item from connections list when it tried to remove fd %d\n.", pthread_self(), threadData->clientFd);
 	}
@@ -151,7 +151,7 @@ void * ThreadServeConnection(void * arg)
 
 int main(int argc, char ** argv)
 {
-	fprint("Server starting, version " GIT_VERSION "\n");
+	printf("Server starting, version %s\n", GIT_VERSION);
 	serverShutdown = false;
     char * portString = getPortString(argc, argv);
 	
@@ -162,7 +162,7 @@ int main(int argc, char ** argv)
 		exit(3);
 	}
 	
-	thread_list_node threads = NULL;
+	thread_list_node * threads = NULL;
     
     // Gives getaddrinfo hints about the critera for the addresses it returns
     struct addrinfo hints;
@@ -281,11 +281,11 @@ int main(int argc, char ** argv)
 	// Clean up thread data
     while (threads)
 	{
-		thread_list_node thisthread = threads;
+		thread_list_node * thisthread = threads;
 		threads = threads->next;
 		if (pthread_join(thisthread->threadId, NULL) != 0)
 		{
-			fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthreadid);
+			fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthread->threadId);
 		}
 		free(thisthread);
 	}

@@ -8,7 +8,7 @@
 // typedef for an element of the list
 typedef struct item_s
 {
-    int64_t data;
+    int data;
     struct item_s *next;
     struct item_s *prev;
 } item_t;
@@ -19,11 +19,11 @@ typedef struct list_s
 {
     item_t* head;
     item_t* tail;
-    int64_t count;
+    int count;
     pthread_mutex_t lock;
 } list_t;
 
-static int Remove_From_Beginning_Prelocked(linked_list_t l, int64_t* data);
+static int Remove_From_Beginning_Prelocked(linked_list_t l, int* data);
 
 //********************************************
 linked_list_t* Init_List()
@@ -64,14 +64,14 @@ int Delete_List(linked_list_t l)
 
 //********************************************
 // const, so no lock needed
-int64_t Count(linked_list_t l)
+int Count(linked_list_t l)
 {
     list_t *list = (list_t *)l;
     return list->count;
 }
 
 //********************************************
-int Insert_At_Beginning(linked_list_t l, int64_t data)
+int Insert_At_Beginning(linked_list_t l, int data)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -99,7 +99,7 @@ int Insert_At_Beginning(linked_list_t l, int64_t data)
     return 0;
 }
 //********************************************
-static int Insert_At_End_Prelocked(linked_list_t l, int64_t data)
+static int Insert_At_End_Prelocked(linked_list_t l, int data)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -121,7 +121,7 @@ static int Insert_At_End_Prelocked(linked_list_t l, int64_t data)
     return 0;
 }
 //********************************************
-int Insert_At_End(linked_list_t l, int64_t data)
+int Insert_At_End(linked_list_t l, int data)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -155,7 +155,7 @@ int Empty(linked_list_t l)
         return 0;
 }
 //********************************************
-static int Remove_From_Beginning_Prelocked(linked_list_t l, int64_t* data)
+static int Remove_From_Beginning_Prelocked(linked_list_t l, int* data)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -175,7 +175,7 @@ static int Remove_From_Beginning_Prelocked(linked_list_t l, int64_t* data)
     return 0;
 }
 //********************************************
-int Remove_From_Beginning(linked_list_t l, int64_t* data)
+int Remove_From_Beginning(linked_list_t l, int* data)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -197,7 +197,7 @@ int Remove_From_Beginning(linked_list_t l, int64_t* data)
     return 0;
 }
 //********************************************
-int Remove_From_End(linked_list_t l, int64_t* data)
+int Remove_From_End(linked_list_t l, int* data)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -219,7 +219,7 @@ int Remove_From_End(linked_list_t l, int64_t* data)
     return 0;
 }
 //********************************************
-int Traverse(linked_list_t l, void (*action)(int64_t value, void * userData), void * userData)
+int Traverse(linked_list_t l, void (*action)(int value, void * userData), void * userData)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -237,7 +237,7 @@ int Traverse(linked_list_t l, void (*action)(int64_t value, void * userData), vo
 }
 
 //********************************************
-int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int64_t value, void * userData), void * userData)
+int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userData), void * userData)
 {
 	item_t ** itemReference;
 	list_t *list = (list_t *)l;
@@ -267,7 +267,7 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int64_t value, void * u
 
 
 //********************************************
-int Insert_In_Order(linked_list_t l, int64_t data)
+int Insert_In_Order(linked_list_t l, int data)
 {
     item_t *item;
     item_t *new_item;
