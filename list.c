@@ -240,26 +240,53 @@ int Traverse(linked_list_t l, void (*action)(int value, void * userData), void *
 int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userData), void * userData)
 {
 	int removedCount = 0;
-	item_t ** itemReference;
+	item_t * item;
+	item_t * itemPrev;
 	list_t *list = (list_t *)l;
 	
 	pthread_mutex_lock(&(list->lock));
-	itemReference = &(list->head);
-	while (*itemReference != NULL)
+	item = list->head;
+	itemPrev = NULL;
+	while (item != NULL)
 	{
-		if (deleteTest((*itemReference)->data, userData))
+		if (deleteTest(item->data, userData))
 		{
 			// We need to remove this item
-			item_t * removedNode = (*itemReference);
-			*itemReference = (*itemReference)->next;
-			free(removedNode);
 			++removedCount;
+			--(list->count);
+			item_t * toRemove = item;
+			
+			if (NULL == itemPrev)
+			{
+				// No node before us -- removed start of the list, update head
+				list->head = item->next;
+				if (NULL == list->head)
+				{
+					// Found the end of the list, we just made the list empty
+					list->tail = NULL;
+				}
+				else
+				{
+					list->head->next->prev = NULL;
+				}
+			}
+			else
+			{
+				// Node before us is a real node, not head
+				itemPrev->next = item->next;
+				if (NULL == itemPrev->next)
+				{
+					// Next thing is null, found end of the list, update tail
+					list->tail = itemPrev;
+				}
+				else
+				{
+					itemPrev->next->prev = itemPrev;
+				}
+			}
+			free(toRemove);
 		}
-		else
-		{
-			// Think we don't need to do anything
-		}
-		itemReference = &((*itemReference)->next);
+		item = item->next;
 	}
 	pthread_mutex_unlock(&(list->lock));
 	
