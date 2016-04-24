@@ -114,6 +114,9 @@ void * ThreadServeConnection(void * arg)
 	// All clients list, which we will broadcast message to.
 	linked_list_t connections = threadData->connections;
 	
+	// Add our connection to the list of connections to send messages
+	Insert_At_Beginning(connections, clientSocket);
+	
 	// Our buffer for copying
 	char copyBuffer[BUFFSIZE];
 	int copyBufferUsed = 0;
@@ -139,7 +142,7 @@ void * ThreadServeConnection(void * arg)
 	// Remove the fd from the list
 	if (1 != DeleteItemsFilter(connections, fdRemoveCompare, &(threadData->clientFd)))
 	{
-		fprintf(stderr, "Warning, thread %ld did not remove 1 item from connections list when it tried to remove fd %d\n.", pthread_self(), threadData->clientFd);
+		fprintf(stderr, "Warning, thread %ld did not remove 1 item from connections list when it tried to remove fd %d.\n", pthread_self(), threadData->clientFd);
 	}
 	
 	// Close the fd

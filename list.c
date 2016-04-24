@@ -239,6 +239,7 @@ int Traverse(linked_list_t l, void (*action)(int value, void * userData), void *
 //********************************************
 int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userData), void * userData)
 {
+	int removedCount = 0;
 	item_t ** itemReference;
 	list_t *list = (list_t *)l;
 	
@@ -252,6 +253,7 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userD
 			item_t * removedNode = (*itemReference);
 			*itemReference = (*itemReference)->next;
 			free(removedNode);
+			++removedCount;
 		}
 		else
 		{
@@ -261,7 +263,7 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userD
 	}
 	pthread_mutex_unlock(&(list->lock));
 	
-	return 0;
+	return removedCount;
 }
 
 
