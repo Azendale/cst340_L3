@@ -1,4 +1,5 @@
 // Written 2016-03 by Erik Andersen
+// Modified 2016-04 by Erik Andersen
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
