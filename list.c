@@ -219,7 +219,7 @@ int Remove_From_End(linked_list_t l, int64_t* data)
     return 0;
 }
 //********************************************
-int Traverse(linked_list_t l, void (*action)(int64_t value))
+int Traverse(linked_list_t l, void (*action)(int64_t value, void * userData), void * userData)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -228,13 +228,44 @@ int Traverse(linked_list_t l, void (*action)(int64_t value))
     item = list->head;
     while (item != NULL)
     {
-        action(item->data);
+        action(item->data, userData);
         item = item->next;
     }
     pthread_mutex_unlock(&(list->lock));
 
     return 0;
 }
+
+//********************************************
+int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int64_t value, void * userData), void * userData)
+{
+	item_t ** itemReference;
+	list_t *list = (list_t *)l;
+	
+	pthread_mutex_lock(&(list->lock));
+	itemReference = &(list->head);
+	while (*itemReference != NULL)
+	{
+		if (deleteTest((*itemReference)->data, userData))
+		{
+			// We need to remove this item
+			item_t * removedNode = (*itemReference);
+			*itemReference = (*itemReference)->next;
+			free(removedNode);
+		}
+		else
+		{
+			// Think we don't need to do anything
+		}
+		itemReference = &((*itemReference)->next);
+	}
+	pthread_mutex_unlock(&(list->lock));
+	
+	return 0;
+}
+
+
+
 //********************************************
 int Insert_In_Order(linked_list_t l, int64_t data)
 {

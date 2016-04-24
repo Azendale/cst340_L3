@@ -2,7 +2,7 @@
 # Makefile for threaded chat server lab
 # Erik Andersen
 #
-GIT_VERSION := $(shell git describe --abbrev=16 --dirty="-uncommitted" --always --tags)
+GIT_VERSION := $(shell git describe --abbrev=7 --dirty="-uncommitted" --always --tags)
 CFLAGS=-Wall -Wshadow -Wunreachable-code -Wredundant-decls -DGIT_VERSION=\"$(GIT_VERSION)\" -std=gnu99 -g -O0
 CC = gcc
 
@@ -16,11 +16,11 @@ clean:
 	rm -f *.o
 
 .c.o:
-	$(CC) $(COPTS) -c $? -o $@
+	$(CC) $(CFLAGS) -c $? -o $@
 
 server: $(OBJS)
-	$(CC) $(COPTS) $(OBJS) -o server
+	$(CC) $(CFLAGS) $(OBJS) server.c -o server
 
 client: $(OBJS)
-	$(CC) $(COPTS) $(OBJS) -o client
+	$(CC) $(CFLAGS) $(OBJS) client.c -o client
 

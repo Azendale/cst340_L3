@@ -13,6 +13,9 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <signal.h>
+
+#define BUFFER_SIZE 256
 
 // Contains an easy to use representation of the command line args
 typedef struct
@@ -149,13 +152,13 @@ int main(int argc, char ** argv)
 		int sendBufWritten = 0;
 		int writtenThisRound = 0;
 		while (sendBufWritten < sendBufUsed &&
-			0 < (writtenThisRound = write(sockfd, sendBuf, sendBufUsed-sendBufWritten))
+			0 < (writtenThisRound = write(sockfd, sendBuffer, sendBufUsed-sendBufWritten))
 		)
 		{
 			sendBufWritten += writtenThisRound;
 		}
-		fprintf(stderr, "Error writing to fd %d.\n", outFd);
-        memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
+		fprintf(stderr, "Error writing to fd %d.\n", sockfd);
+        memset(sendBuffer, 0, BUFFER_SIZE);
     }
     close(sockfd);
 	

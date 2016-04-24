@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "list.h"
 #define BUFFSIZE 256
@@ -24,28 +25,28 @@
 typedef struct 
 {
 	linked_list_t connections;
-	int64_t clientFd;
+	int clientFd;
 } thread_data_t;
 
 typedef struct thisstruct
 {
 	pthread_t threadId;
-	thisstruct * next;
+	struct thisstruct * next;
 } thread_list_node;
 
 // Only written by main thread, and only set by main thread independent of previous value
 // Read by other threads: if they see it as true, they attempt to shutdown at the next chance
-bool shutdown;
+bool serverShutdown;
 
 void handleSIGINT(int sig)
 {
 	// Set the stop signal
-	shutdown = true;
+	serverShutdown = true;
 }
 
-int fdRemoveCompare(int64_t data, void * userData)
+int fdRemoveCompare(int data, void * userData)
 {
-	int64_t valueToRemove = *(int64_t *)userData;
+	int valueToRemove = *(int *)userData;
 	
 	if (valueToRemove == data)
 	{
@@ -84,7 +85,7 @@ typedef struct
 	int messageBufUsed;
 } write_message_data;
 
-void writeMessage(int64_t outFd, void * userData)
+void writeMessage(int outFd, void * userData)
 {
 	int messageBufUsed = ((write_message_data *)userData)->messageBufUsed;
 	char* messageBuf = ((write_message_data *)userData)->messageBuf;
@@ -119,7 +120,7 @@ void * ThreadServeConnection(void * arg)
 	
 	// while there is still stuff to read from the client and the server isn't trying to shut down
 	// try to read buffersize and set buffer used based on result
-	while (!shutdown &&(0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE)))
+	while (!serverShutdown &&(0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE))))
 	{
 		write_message_data writeInfo;
 		writeInfo->messageBuf = copyBuffer;
@@ -151,7 +152,7 @@ void * ThreadServeConnection(void * arg)
 int main(int argc, char ** argv)
 {
 	fprint("Server starting, version " GIT_VERSION "\n");
-	shutdown = false;
+	serverShutdown = false;
     char * portString = getPortString(argc, argv);
 	
 	linked_list_t connections = Init_List();
@@ -237,7 +238,7 @@ int main(int argc, char ** argv)
     signal(SIGINT, handleSIGINT);
     // Now we are set up to take connections. Start a thread for each.
     
-    while (!shutdown)
+    while (!serverShutdown)
     {
        int acceptfd = -1; 
         if (-1 == (acceptfd = accept(sockfd, NULL, NULL)))
@@ -249,7 +250,7 @@ int main(int argc, char ** argv)
                 || EHOSTUNREACH == errno || EOPNOTSUPP == errno || ENETUNREACH))
             {
                 // Something the man page didn't list went wrong, let's give up
-                shutdown = true;
+                serverShutdown = true;
             }
         }
         else

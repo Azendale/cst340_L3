@@ -86,7 +86,7 @@ int Traverse(linked_list_t list, void (*action)(int64_t data, void * userData), 
 //    deleteTest: The function to call for each node
 //         data: The data stored at the node being acted on
 //         userData: opaque pointer for any data the user supplied function may need
-int DeleteItems(linked_list_t list, int (*deleteTest)(int64_t data, void * userData), void * userData);
+int DeleteItemsFilter(linked_list_t list, int (*deleteTest)(int64_t data, void * userData), void * userData);
 
 // Insert a value into the list in sorted order
 // This function performs an insertion sort
