@@ -98,7 +98,10 @@ void writeMessage(int outFd, void * userData)
 	{
 		messageBufWritten += writtenThisRound;
 	}
-	fprintf(stderr, "Error writing to fd %d.\n", outFd);
+	if (writtenThisRound < 0)
+	{
+		fprintf(stderr, "Error writing to fd %d.\n", outFd);
+	}
 }
 
 // Serve a new connection. void * arg is actually a file descriptor for the new
