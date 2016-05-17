@@ -25,14 +25,14 @@
 
 typedef struct 
 {
-	linked_list_t connections;
-	int clientFd;
+    linked_list_t connections;
+    int clientFd;
 } thread_data_t;
 
 typedef struct thisstruct
 {
-	pthread_t threadId;
-	struct thisstruct * next;
+    pthread_t threadId;
+    struct thisstruct * next;
     int clientFd;
 } thread_list_node;
 
@@ -44,23 +44,23 @@ int sockfd = -1;
 
 void handleSIGINT(int sig)
 {
-	// Set the stop signal
-	serverShutdown = true;
+    // Set the stop signal
+    serverShutdown = true;
     shutdown(sockfd, SHUT_RD);
 }
 
 int fdRemoveCompare(int data, void * userData)
 {
-	int valueToRemove = *(int *)userData;
-	
-	if (valueToRemove == data)
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
+    int valueToRemove = *(int *)userData;
+    
+    if (valueToRemove == data)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 // Uses getopt style arguments to get the port number, as a cstring
@@ -86,93 +86,93 @@ char * getPortString(int argc, char ** argv)
 
 typedef struct
 {
-	char * messageBuf;
-	int messageBufUsed;
+    char * messageBuf;
+    int messageBufUsed;
 } write_message_data;
 
 void writeMessage(int outFd, void * userData)
 {
-	int messageBufUsed = ((write_message_data *)userData)->messageBufUsed;
-	char* messageBuf = ((write_message_data *)userData)->messageBuf;
-	int messageBufWritten = 0;
-	int writtenThisRound = 0;
-	while (messageBufWritten < messageBufUsed &&
-		0 < (writtenThisRound = write(outFd, messageBuf, messageBufUsed-messageBufWritten))
-	)
-	{
-		messageBufWritten += writtenThisRound;
-	}
-	if (writtenThisRound < 0)
-	{
-		fprintf(stderr, "Error writing to fd %d.\n", outFd);
-	}
+    int messageBufUsed = ((write_message_data *)userData)->messageBufUsed;
+    char* messageBuf = ((write_message_data *)userData)->messageBuf;
+    int messageBufWritten = 0;
+    int writtenThisRound = 0;
+    while (messageBufWritten < messageBufUsed &&
+        0 < (writtenThisRound = write(outFd, messageBuf, messageBufUsed-messageBufWritten))
+    )
+    {
+        messageBufWritten += writtenThisRound;
+    }
+    if (writtenThisRound < 0)
+    {
+        fprintf(stderr, "Error writing to fd %d.\n", outFd);
+    }
 }
 
 // Serve a new connection. void * arg is actually a file descriptor for the new
 // connection
 void * ThreadServeConnection(void * arg)
 {
-	// Needs to have all fds, as well as ours specifically
-	thread_data_t * threadData = (thread_data_t *)arg;
+    // Needs to have all fds, as well as ours specifically
+    thread_data_t * threadData = (thread_data_t *)arg;
     
     // Client we read from
     int clientSocket = threadData->clientFd;
-	
-	// All clients list, which we will broadcast message to.
-	linked_list_t connections = threadData->connections;
-	
-	// Add our connection to the list of connections to send messages
-	Insert_At_Beginning(connections, clientSocket);
-	
-	// Our buffer for copying
-	char copyBuffer[BUFFSIZE];
-	int copyBufferUsed = 0;
-	
-	// while there is still stuff to read from the client and the server isn't trying to shut down
-	// try to read buffersize and set buffer used based on result
-	while (!serverShutdown &&(0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE))))
-	{
-		write_message_data writeInfo;
-		writeInfo.messageBuf = copyBuffer;
-		writeInfo.messageBufUsed = copyBufferUsed;
-		// Attempt to write that buffer to each connection:
-		if (0 != Traverse(connections, writeMessage, &writeInfo))
-		{
-			fprintf(stderr, "Error while trying to traverse connections list to write message from thread %ld", pthread_self());
-		}
-	}
-	if (copyBufferUsed < 0)
-	{
-		fprintf(stderr, "Error while trying to read from client socket fd %d, thread %ld, closing that connection.\n", clientSocket, pthread_self());
-	}
     
-	// Remove the fd from the list
-	if (1 != DeleteItemsFilter(connections, fdRemoveCompare, &(threadData->clientFd)))
-	{
-		fprintf(stderr, "Warning, thread %ld did not remove 1 item from connections list when it tried to remove fd %d.\n", pthread_self(), threadData->clientFd);
-	}
-	
-	// Close the fd
+    // All clients list, which we will broadcast message to.
+    linked_list_t connections = threadData->connections;
+    
+    // Add our connection to the list of connections to send messages
+    Insert_At_Beginning(connections, clientSocket);
+    
+    // Our buffer for copying
+    char copyBuffer[BUFFSIZE];
+    int copyBufferUsed = 0;
+    
+    // while there is still stuff to read from the client and the server isn't trying to shut down
+    // try to read buffersize and set buffer used based on result
+    while (!serverShutdown &&(0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE))))
+    {
+        write_message_data writeInfo;
+        writeInfo.messageBuf = copyBuffer;
+        writeInfo.messageBufUsed = copyBufferUsed;
+        // Attempt to write that buffer to each connection:
+        if (0 != Traverse(connections, writeMessage, &writeInfo))
+        {
+            fprintf(stderr, "Error while trying to traverse connections list to write message from thread %ld", pthread_self());
+        }
+    }
+    if (copyBufferUsed < 0)
+    {
+        fprintf(stderr, "Error while trying to read from client socket fd %d, thread %ld, closing that connection.\n", clientSocket, pthread_self());
+    }
+    
+    // Remove the fd from the list
+    if (1 != DeleteItemsFilter(connections, fdRemoveCompare, &(threadData->clientFd)))
+    {
+        fprintf(stderr, "Warning, thread %ld did not remove 1 item from connections list when it tried to remove fd %d.\n", pthread_self(), threadData->clientFd);
+    }
+    
+    // Close the fd
     close(threadData->clientFd);
-	
-	free(threadData);
+    
+    free(threadData);
     return NULL;
 }
 
 int main(int argc, char ** argv)
 {
-	printf("Server starting, version %s\n", GIT_VERSION);
-	serverShutdown = false;
+    printf("Server starting, version %s\n", GIT_VERSION);
+    serverShutdown = false;
     char * portString = getPortString(argc, argv);
-	
-	linked_list_t connections = Init_List();
-	if (NULL == connections)
-	{
+    
+    linked_list_t connections = Init_List();
+    if (NULL == connections)
+    {
         fprintf(stderr, "Trouble creating clients tracking list.\n");
-		exit(3);
-	}
-	
-	thread_list_node * threads = NULL;
+        exit(3);
+    }
+    
+    thread_list_node * threads = NULL;
     
     // Gives getaddrinfo hints about the critera for the addresses it returns
     struct addrinfo hints;
@@ -249,7 +249,7 @@ int main(int argc, char ** argv)
     
     while (!serverShutdown)
     {
-       int acceptfd = -1; 
+    int acceptfd = -1; 
         if (-1 == (acceptfd = accept(sockfd, NULL, NULL)))
         {
             if (EINVAL == errno)
@@ -271,44 +271,44 @@ int main(int argc, char ** argv)
         }
         else
         {
-			thread_data_t * threadData = (thread_data_t *)malloc(sizeof(thread_data_t));
-			thread_list_node * thisThread = (thread_list_node *)malloc(sizeof(thread_list_node));
-			if (NULL != threadData && NULL != thisThread)
-			{
-				thisThread->next = threads;
-				threadData->clientFd = acceptfd;
+            thread_data_t * threadData = (thread_data_t *)malloc(sizeof(thread_data_t));
+            thread_list_node * thisThread = (thread_list_node *)malloc(sizeof(thread_list_node));
+            if (NULL != threadData && NULL != thisThread)
+            {
+                thisThread->next = threads;
+                threadData->clientFd = acceptfd;
                 thisThread->clientFd = acceptfd;
-				threadData->connections = connections;
-				pthread_create(&(thisThread->threadId), NULL, ThreadServeConnection, threadData);
-				// Now we have a valid thread, add it to the list of ones we'll wait for
-				threads = thisThread;
-			}
-			else if (threadData)
-			{
-				free(threadData);
-			}
-			else // One of them was NULL, and it wasn't threadData, so it must be thisThread
-			{
-				free(thisThread);
-			}
+                threadData->connections = connections;
+                pthread_create(&(thisThread->threadId), NULL, ThreadServeConnection, threadData);
+                // Now we have a valid thread, add it to the list of ones we'll wait for
+                threads = thisThread;
+            }
+            else if (threadData)
+            {
+                free(threadData);
+            }
+            else // One of them was NULL, and it wasn't threadData, so it must be thisThread
+            {
+                free(thisThread);
+            }
         }
     }
-	
-	// Now in shutdown mode
-	// Clean up thread data
+    
+    // Now in shutdown mode
+    // Clean up thread data
     while (threads)
-	{
-		thread_list_node * thisthread = threads;
-		threads = threads->next;
+    {
+        thread_list_node * thisthread = threads;
+        threads = threads->next;
         shutdown(thisthread->clientFd, SHUT_RD);
-		if (pthread_join(thisthread->threadId, NULL) != 0)
-		{
-			fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthread->threadId);
-		}
-		free(thisthread);
-	}
-	
-	free(connections);
+        if (pthread_join(thisthread->threadId, NULL) != 0)
+        {
+            fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthread->threadId);
+        }
+        free(thisthread);
+    }
+    
+    free(connections);
     // pthread_exit(0);
     return 0;
 }
