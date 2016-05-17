@@ -167,7 +167,8 @@ int Remove_From_Beginning(linked_list_t l, int* data)
 }
 
 //********************************************
-int Traverse(linked_list_t l, void (*action)(int value, void * userData), void * userData)
+int Traverse(linked_list_t l, void (*action)(int value, void * userData),
+             void * userData)
 {
     item_t *item;
     list_t *list = (list_t *)l;
@@ -185,7 +186,9 @@ int Traverse(linked_list_t l, void (*action)(int value, void * userData), void *
 }
 
 //********************************************
-int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userData), void * userData)
+int DeleteItemsFilter(linked_list_t l,
+                      int (*deleteTest)(int value, void * userData),
+                      void * userData)
 {
     int removedCount = 0;
     item_t * item;

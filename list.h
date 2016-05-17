@@ -38,8 +38,10 @@ int Remove_From_Beginning(linked_list_t list, int* data);
 //    list: list to traverse
 //    action: The function to call for each node
 //         data: The data stored at the node being acted on
-//         userData: opaque pointer for any data the user supplied function may need
-int Traverse(linked_list_t list, void (*action)(int data, void * userData), void * userData);
+//         userData: opaque pointer for any data the user supplied function may
+//           need
+int Traverse(linked_list_t list, void (*action)(int data, void * userData),
+             void * userData);
 
 // Iterate through the list. Call a function on the data from each node
 // to decide if we should remove the node, and remove the node if the
@@ -49,5 +51,8 @@ int Traverse(linked_list_t list, void (*action)(int data, void * userData), void
 //    list: list to traverse
 //    deleteTest: The function to call for each node
 //         data: The data stored at the node being acted on
-//         userData: opaque pointer for any data the user supplied function may need
-int DeleteItemsFilter(linked_list_t list, int (*deleteTest)(int data, void * userData), void * userData);
+//         userData: opaque pointer for any data the user supplied function may
+//           need
+int DeleteItemsFilter(linked_list_t list,
+                      int (*deleteTest)(int data, void * userData),
+                      void * userData);
