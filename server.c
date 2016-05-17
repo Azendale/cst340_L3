@@ -301,7 +301,6 @@ int main(int argc, char ** argv)
     
     Traverse(connections, shutConnection, NULL);
     
-    
     // Now in shutdown mode
     // Clean up thread data
     while (threads)
