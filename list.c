@@ -83,6 +83,10 @@ static int Remove_From_Beginning_Prelocked(linked_list_t l, int* data)
     {
         list->tail = NULL;
     }
+    else
+    {
+        list->head->prev = NULL;
+    }
     
     if (data != NULL)
     {
@@ -115,12 +119,12 @@ int Insert_At_Beginning(linked_list_t l, int data)
     {
         item->next->prev = item;
     }
-
-    list->head = item;
-    if (list->tail == NULL)
+    else
     {
         list->tail = item;
     }
+
+    list->head = item;
 
     pthread_mutex_unlock(&(list->lock));
 
@@ -144,6 +148,10 @@ int Remove_From_Beginning(linked_list_t l, int* data)
     if (list->head == NULL)
     {
         list->tail = NULL;
+    }
+    else
+    {
+        list->head->prev = NULL;
     }
 
     if (data != NULL)
@@ -181,12 +189,10 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userD
 {
     int removedCount = 0;
     item_t * item;
-    item_t * itemPrev;
     list_t *list = (list_t *)l;
     
     pthread_mutex_lock(&(list->lock));
     item = list->head;
-    itemPrev = NULL;
     while (item != NULL)
     {
         if (deleteTest(item->data, userData))
@@ -195,41 +201,30 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userD
             ++removedCount;
             item_t * toRemove = item;
             
-            if (NULL == itemPrev)
+            // At the start or not
+            if (NULL == item->prev)
             {
+                // At the start
                 // No node before us -- removed start of the list, update head
                 list->head = item->next;
-                if (NULL == list->head)
-                {
-                    // Found the end of the list, we just made the list empty
-                    list->tail = NULL;
-                }
-                else
-                {
-                    if (list->head->next)
-                    {
-                        list->head->next->prev = NULL;
-                    }
-                    else
-                    {
-                        list->tail = list->head;
-                    }
-                }
             }
             else
             {
+                // Not at the start
                 // Node before us is a real node, not head
-                itemPrev->next = item->next;
-                if (NULL == itemPrev->next)
-                {
-                    // Next thing is null, found end of the list, update tail
-                    list->tail = itemPrev;
-                }
-                else
-                {
-                    itemPrev->next->prev = itemPrev;
-                }
+                item->prev->next = item->next;
             }
+            
+            if (item->next)
+            {
+                item->next->prev = item->prev;
+            }
+            else
+            {
+                // At end of list
+                list->tail = item->prev;
+            }
+            
             item = item->next;
             free(toRemove);
         }
