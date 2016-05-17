@@ -34,6 +34,11 @@ void Init_program_options(program_options * options)
 	options->clientName = NULL;
 }
 
+typedef struct
+{
+	int socketFd;
+} io_thread_data;
+
 // Parse command line args into the already allocatated program_options struct
 // 'options'
 void parseOptions(int argc, char ** argv, program_options * options)
@@ -86,6 +91,48 @@ void clientSIGINT(int signal)
 	continueLoop = false;
 }
 
+void * inputLoop(void * userdata)
+{
+	char sendBuffer[BUFFER_SIZE];
+	
+	memset(sendBuffer, 0, BUFFER_SIZE);
+	while (continueLoop && NULL != fgets(sendBuffer, BUFFER_SIZE, stdin))
+	{
+		int sendBufUsed = strlen(sendBuffer);
+		int sendBufWritten = 0;
+		int writtenThisRound = 0;
+		while (sendBufWritten < sendBufUsed &&
+			0 < (writtenThisRound = write(sockfd, sendBuffer, sendBufUsed-sendBufWritten))
+		)
+		{
+			sendBufWritten += writtenThisRound;
+		}
+		fprintf(stderr, "Error writing to fd %d.\n", sockfd);
+		memset(sendBuffer, 0, BUFFER_SIZE);
+	}
+}
+
+void * outputLoop(void * userdata)
+{
+	char recvBuffer[BUFFER_SIZE];
+	int socketfd = (io_thread_data *)(userdata)->socketFd;
+	
+	memset(recvBuffer, 0, BUFFER_SIZE);
+	while (continueLoop && 0 != read(recvBuffer, BUFFER_SIZE, socketfd))
+	{
+		int recvBufWritten = 0;
+		int writtenThisRound = 0;
+		while (recvBufWritten < recvBufUsed &&
+			0 < (writtenThisRound = write(stdout, recvBuffer, recvBufUsed-recvBufWritten))
+		)
+		{
+			recvBufWritten += writtenThisRound;
+		}
+		fprintf(stderr, "Error writing to stdout.\n");
+		memset(recv, 0, BUFFER_SIZE);
+	}
+}
+
 int main(int argc, char ** argv)
 {
     // Program options
@@ -136,33 +183,20 @@ int main(int argc, char ** argv)
         }
     }
     
-    char * sendBuffer = (char *)malloc(BUFFER_SIZE);
-	if (NULL == sendBuffer)
-	{
-		fprintf(stderr, "Couldn't allocate message buffer.\n");
-		exit(7);
-	}
-	
 	signal(SIGINT, clientSIGINT);
 	
-    memset(sendBuffer, 0, BUFFER_SIZE);
-    while (continueLoop && NULL != fgets(sendBuffer, BUFFER_SIZE, stdin))
-    {
-		int sendBufUsed = strlen(sendBuffer);
-		int sendBufWritten = 0;
-		int writtenThisRound = 0;
-		while (sendBufWritten < sendBufUsed &&
-			0 < (writtenThisRound = write(sockfd, sendBuffer, sendBufUsed-sendBufWritten))
-		)
-		{
-			sendBufWritten += writtenThisRound;
-		}
-		fprintf(stderr, "Error writing to fd %d.\n", sockfd);
-        memset(sendBuffer, 0, BUFFER_SIZE);
-    }
-    close(sockfd);
+	io_thread_data inThreadData;
+	io_thread_data outThreadData;
+	pthread_t inThread, outThread;
 	
-	free(sendBuffer);
+	inThreadData.socketFd = sockfd;
+	outThreadData.socketFd = sockfd;
+	
+	pthread_create(&inThread, NULL, ThreadServeConnection, threadData);
+	
+	
+	
+    close(sockfd);
     
     return 0;
 }
