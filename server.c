@@ -33,16 +33,20 @@ typedef struct thisstruct
 {
 	pthread_t threadId;
 	struct thisstruct * next;
+    int clientFd;
 } thread_list_node;
 
 // Only written by main thread, and only set by main thread independent of previous value
 // Read by other threads: if they see it as true, they attempt to shutdown at the next chance
 bool serverShutdown;
+// Only used by main thread. Needs to be global so signal handler can tell it to quit listening
+int sockfd = -1;
 
 void handleSIGINT(int sig)
 {
 	// Set the stop signal
 	serverShutdown = true;
+    shutdown(sockfd, SHUT_RD);
 }
 
 int fdRemoveCompare(int data, void * userData)
@@ -192,7 +196,6 @@ int main(int argc, char ** argv)
         fprintf(stderr, "Trouble with getaddrinfo, error was %s.\n", gai_strerror(status));
     }
     
-    int sockfd = -1;
     struct addrinfo * current = serverinfo;
     // Traverse results list until one of them works to open
     sockfd = socket(current->ai_family, current->ai_socktype, current->ai_protocol);
@@ -249,7 +252,14 @@ int main(int argc, char ** argv)
        int acceptfd = -1; 
         if (-1 == (acceptfd = accept(sockfd, NULL, NULL)))
         {
-            fprintf(stderr, "Trouble accept()ing a connection.\n");
+            if (EINVAL == errno)
+            {
+                printf("Sever interrupted while waiting to accept a connection. Shutting down.\n");
+            }
+            else
+            {
+                perror("Trouble accept()ing a connection");
+            }
             // Things the man page says we should check for and try again after
             if (!(EAGAIN == errno || ENETDOWN == errno || EPROTO == errno || \
                 ENOPROTOOPT == errno || EHOSTDOWN == errno || ENONET == errno \
@@ -267,6 +277,7 @@ int main(int argc, char ** argv)
 			{
 				thisThread->next = threads;
 				threadData->clientFd = acceptfd;
+                thisThread->clientFd = acceptfd;
 				threadData->connections = connections;
 				pthread_create(&(thisThread->threadId), NULL, ThreadServeConnection, threadData);
 				// Now we have a valid thread, add it to the list of ones we'll wait for
@@ -289,14 +300,15 @@ int main(int argc, char ** argv)
 	{
 		thread_list_node * thisthread = threads;
 		threads = threads->next;
+        shutdown(thisthread->clientFd, SHUT_RD);
 		if (pthread_join(thisthread->threadId, NULL) != 0)
 		{
 			fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthread->threadId);
 		}
 		free(thisthread);
 	}
-
-        
-    pthread_exit(0);
+	
+	free(connections);
+    // pthread_exit(0);
     return 0;
 }
