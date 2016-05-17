@@ -14,8 +14,9 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <signal.h>
+#include <pthread.h>
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 1024
 
 // Contains an easy to use representation of the command line args
 typedef struct
@@ -37,6 +38,7 @@ void Init_program_options(program_options * options)
 typedef struct
 {
 	int socketFd;
+    program_options * options;
 } io_thread_data;
 
 // Parse command line args into the already allocatated program_options struct
@@ -82,6 +84,11 @@ void parseOptions(int argc, char ** argv, program_options * options)
 		fprintf(stderr, "You must pick a chat client username with the -n option.\n");
 		exit(3);
 	}
+	if ((BUFFER_SIZE/2) < strlen(options->clientName))
+    {
+        fprintf(stderr, "Your choosen username is too long.\n");
+        exit(5);
+    }
 }
 
 bool continueLoop = true;
@@ -94,9 +101,18 @@ void clientSIGINT(int signal)
 void * inputLoop(void * userdata)
 {
 	char sendBuffer[BUFFER_SIZE];
+    program_options * options = ((io_thread_data *)(userdata))->options;
+    int sockfd = ((io_thread_data *)(userdata))->socketFd;
+    int usernameSize = strlen(options->clientName);
 	
-	memset(sendBuffer, 0, BUFFER_SIZE);
-	while (continueLoop && NULL != fgets(sendBuffer, BUFFER_SIZE, stdin))
+    if (usernameSize + 3 < BUFFER_SIZE)
+    {
+        strcpy(sendBuffer, options->clientName);
+        sendBuffer[usernameSize] = ':';
+        sendBuffer[usernameSize+1] = ' ';
+    }
+
+	while (continueLoop && NULL != fgets(sendBuffer+usernameSize+2, BUFFER_SIZE-usernameSize, stdin))
 	{
 		int sendBufUsed = strlen(sendBuffer);
 		int sendBufWritten = 0;
@@ -107,30 +123,45 @@ void * inputLoop(void * userdata)
 		{
 			sendBufWritten += writtenThisRound;
 		}
-		fprintf(stderr, "Error writing to fd %d.\n", sockfd);
-		memset(sendBuffer, 0, BUFFER_SIZE);
+		if (writtenThisRound <= 0)
+        {
+            fprintf(stderr, "Error writing to fd %d.\n", sockfd);
+        }
+        if (usernameSize + 1 < BUFFER_SIZE)
+        {
+            strcpy(sendBuffer, options->clientName);
+            sendBuffer[usernameSize] = ':';
+            sendBuffer[usernameSize+1] = ' ';
+        }
 	}
+	return NULL;
 }
 
 void * outputLoop(void * userdata)
 {
 	char recvBuffer[BUFFER_SIZE];
-	int socketfd = (io_thread_data *)(userdata)->socketFd;
+    int recvBufUsed = 0;
+	int socketfd = ((io_thread_data *)(userdata))->socketFd;
 	
 	memset(recvBuffer, 0, BUFFER_SIZE);
-	while (continueLoop && 0 != read(recvBuffer, BUFFER_SIZE, socketfd))
+	while (continueLoop && 0 != (recvBufUsed = read(socketfd, recvBuffer, BUFFER_SIZE)))
 	{
 		int recvBufWritten = 0;
 		int writtenThisRound = 0;
 		while (recvBufWritten < recvBufUsed &&
-			0 < (writtenThisRound = write(stdout, recvBuffer, recvBufUsed-recvBufWritten))
+			0 < (writtenThisRound = write(1, recvBuffer, recvBufUsed-recvBufWritten))
 		)
 		{
 			recvBufWritten += writtenThisRound;
 		}
-		fprintf(stderr, "Error writing to stdout.\n");
-		memset(recv, 0, BUFFER_SIZE);
+		if (writtenThisRound <=0)
+        {
+            fprintf(stderr, "Error writing to stdout.\n");
+            continueLoop = 0;
+        }
+		memset(recvBuffer, 0, BUFFER_SIZE);
 	}
+	return NULL;
 }
 
 int main(int argc, char ** argv)
@@ -190,10 +221,15 @@ int main(int argc, char ** argv)
 	pthread_t inThread, outThread;
 	
 	inThreadData.socketFd = sockfd;
+    inThreadData.options = &options;
 	outThreadData.socketFd = sockfd;
+    outThreadData.options = &options;
 	
-	pthread_create(&inThread, NULL, ThreadServeConnection, threadData);
+    pthread_create(&inThread, NULL, inputLoop, &inThreadData);
+    pthread_create(&outThread, NULL, outputLoop, &outThreadData);
 	
+    pthread_join(outThread, NULL);
+    pthread_join(inThread, NULL);
 	
 	
     close(sockfd);
