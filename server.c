@@ -49,6 +49,11 @@ void handleSIGINT(int sig)
     shutdown(sockfd, SHUT_RD);
 }
 
+void shutConnection(int fd, void * userdata)
+{
+    shutdown(fd, SHUT_RD);
+}
+
 int fdRemoveCompare(int data, void * userData)
 {
     int valueToRemove = *(int *)userData;
@@ -294,13 +299,15 @@ int main(int argc, char ** argv)
         }
     }
     
+    Traverse(connections, shutConnection, NULL);
+    
+    
     // Now in shutdown mode
     // Clean up thread data
     while (threads)
     {
         thread_list_node * thisthread = threads;
         threads = threads->next;
-        shutdown(thisthread->clientFd, SHUT_RD);
         if (pthread_join(thisthread->threadId, NULL) != 0)
         {
             fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthread->threadId);

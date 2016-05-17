@@ -28,7 +28,10 @@ static int Remove_From_Beginning_Prelocked(linked_list_t l, int* data);
 linked_list_t* Init_List()
 {
     list_t* list = (list_t*)malloc(sizeof(list_t));
-    if (list == NULL) return NULL;
+    if (list == NULL)
+    {
+        return NULL;
+    }
 
     pthread_mutex_init(&(list->lock), NULL);
     
@@ -51,7 +54,10 @@ int Delete_List(linked_list_t l)
     while (NULL != list->head)
     {
         result = Remove_From_Beginning_Prelocked(l, NULL);
-        if (result != 0) return result;
+        if (result != 0)
+        {
+            return result;
+        }
     }
     pthread_mutex_unlock(&(list->lock));
     pthread_mutex_destroy(&(list->lock));
@@ -73,16 +79,20 @@ static int Remove_From_Beginning_Prelocked(linked_list_t l, int* data)
     
     item = list->head;
     list->head = item->next;
-    if (list->head == NULL) list->tail = NULL;
+    if (list->head == NULL)
+    {
+        list->tail = NULL;
+    }
     
-    if (data != NULL) *data = item->data;
+    if (data != NULL)
+    {
+        *data = item->data;
+    }
     
     free(item);
     
     return 0;
 }
-
-
 
 //********************************************
 int Insert_At_Beginning(linked_list_t l, int data)
@@ -101,10 +111,16 @@ int Insert_At_Beginning(linked_list_t l, int data)
     pthread_mutex_lock(&(list->lock));
     item->next = list->head;
 
-    if (item->next != NULL) item->next->prev = item;
+    if (item->next != NULL)
+    {
+        item->next->prev = item;
+    }
 
     list->head = item;
-    if (list->tail == NULL) list->tail = item;
+    if (list->tail == NULL)
+    {
+        list->tail = item;
+    }
 
     pthread_mutex_unlock(&(list->lock));
 
@@ -117,14 +133,23 @@ int Remove_From_Beginning(linked_list_t l, int* data)
     item_t *item;
     list_t *list = (list_t *)l;
 
-    if (list->head == NULL) return LL_LIST_EMPTY;
+    if (list->head == NULL)
+    {
+        return LL_LIST_EMPTY;
+    }
 
     pthread_mutex_lock(&(list->lock));
     item = list->head;
     list->head = item->next;
-    if (list->head == NULL) list->tail = NULL;
+    if (list->head == NULL)
+    {
+        list->tail = NULL;
+    }
 
-    if (data != NULL) *data = item->data;
+    if (data != NULL)
+    {
+        *data = item->data;
+    }
 
     free(item);
 
