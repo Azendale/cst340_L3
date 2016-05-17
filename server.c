@@ -36,10 +36,12 @@ typedef struct thisstruct
     int clientFd;
 } thread_list_node;
 
-// Only written by main thread, and only set by main thread independent of previous value
-// Read by other threads: if they see it as true, they attempt to shutdown at the next chance
+// Only written by main thread, and only set by main thread independent of
+// previous value. Read by other threads: if they see it as true, they attempt
+// to shutdown at the next chance
 bool serverShutdown;
-// Only used by main thread. Needs to be global so signal handler can tell it to quit listening
+// Only used by main thread. Needs to be global so signal handler can tell it to
+// quit listening
 int sockfd = -1;
 
 void handleSIGINT(int sig)
@@ -83,7 +85,8 @@ char * getPortString(int argc, char ** argv)
     }
     if (NULL == portString)
     {
-        fprintf(stderr, "No port number or service name set. Please specify it with -p <port_number>.\n");
+        fprintf(stderr, "No port number or service name set. Please specify it"
+        " with -p <port_number>.\n");
         exit(4);
     }
     return portString;
@@ -101,8 +104,8 @@ void writeMessage(int outFd, void * userData)
     char* messageBuf = ((write_message_data *)userData)->messageBuf;
     int messageBufWritten = 0;
     int writtenThisRound = 0;
-    while (messageBufWritten < messageBufUsed &&
-        0 < (writtenThisRound = write(outFd, messageBuf, messageBufUsed-messageBufWritten))
+    while (messageBufWritten < messageBufUsed && 0 < (writtenThisRound =
+        write(outFd, messageBuf, messageBufUsed-messageBufWritten))
     )
     {
         messageBufWritten += writtenThisRound;
@@ -133,9 +136,11 @@ void * ThreadServeConnection(void * arg)
     char copyBuffer[BUFFSIZE];
     int copyBufferUsed = 0;
     
-    // while there is still stuff to read from the client and the server isn't trying to shut down
-    // try to read buffersize and set buffer used based on result
-    while (!serverShutdown &&(0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE))))
+    // while there is still stuff to read from the client and the server isn't
+    // trying to shut down try to read buffersize and set buffer used based on
+    // result
+    while (!serverShutdown &&
+        (0 < (copyBufferUsed = read(clientSocket, copyBuffer, BUFFSIZE))))
     {
         write_message_data writeInfo;
         writeInfo.messageBuf = copyBuffer;
@@ -143,19 +148,24 @@ void * ThreadServeConnection(void * arg)
         // Attempt to write that buffer to each connection:
         if (0 != Traverse(connections, writeMessage, &writeInfo))
         {
-            fprintf(stderr, "Error while trying to traverse connections list to write message from thread %ld", pthread_self());
+            fprintf(stderr, "Error while trying to traverse connections list to"
+            " write message from thread %ld", pthread_self());
         }
     }
     if (copyBufferUsed < 0)
     {
         printf("%d\n", errno);
-        fprintf(stderr, "Error while trying to read from client socket fd %d, thread %ld, closing that connection.\n", clientSocket, pthread_self());
+        fprintf(stderr, "Error while trying to read from client socket fd %d,"
+        "thread %ld, closing that connection.\n", clientSocket, pthread_self());
     }
     
     // Remove the fd from the list
-    if (1 != DeleteItemsFilter(connections, fdRemoveCompare, &(threadData->clientFd)))
+    if (1 != DeleteItemsFilter(connections, fdRemoveCompare,
+        &(threadData->clientFd)))
     {
-        fprintf(stderr, "Warning, thread %ld did not remove 1 item from connections list when it tried to remove fd %d.\n", pthread_self(), threadData->clientFd);
+        fprintf(stderr, "Warning, thread %ld did not remove 1 item from"
+        " connections list when it tried to remove fd %d.\n", pthread_self(),
+        threadData->clientFd);
     }
     
     // Close the fd
@@ -199,42 +209,52 @@ int main(int argc, char ** argv)
     if (0 != (status = getaddrinfo(NULL, portString, &hints, &serverinfo)))
     {
         // There was a problem, print it out
-        fprintf(stderr, "Trouble with getaddrinfo, error was %s.\n", gai_strerror(status));
+        fprintf(stderr, "Trouble with getaddrinfo, error was %s.\n",
+                gai_strerror(status));
     }
     
     struct addrinfo * current = serverinfo;
     // Traverse results list until one of them works to open
-    sockfd = socket(current->ai_family, current->ai_socktype, current->ai_protocol);
+    sockfd = socket(current->ai_family, current->ai_socktype,
+                    current->ai_protocol);
     while (-1 == sockfd && NULL != current->ai_next)
     {
         current = current->ai_next;
-        sockfd = socket(current->ai_family, current->ai_socktype, current->ai_protocol);
+        sockfd = socket(current->ai_family, current->ai_socktype,
+                        current->ai_protocol);
     }
     if (-1 == sockfd)
     {
-        fprintf(stderr, "We tried valliantly, but we were unable to open the socket with what getaddrinfo gave us.\n");
+        fprintf(stderr, "We tried valliantly, but we were unable to open the"
+        " socket with what getaddrinfo gave us.\n");
         freeaddrinfo(serverinfo);
         exit(8);
     }
     
-    // Ok, say we want a socket that abstracts away whether we are doing IPv6 or IPv4 by just having it handle IPv4 mapped addresses for us
+    // Ok, say we want a socket that abstracts away whether we are doing IPv6 or
+    // IPv4 by just having it handle IPv4 mapped addresses for us
     int no = 0;
     if (0 > setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no)))
     {
-        fprintf(stderr, "Trouble setting socket option to also listen on IPv4 in addition to IPv6. Falling back to IPv6 only.\n");
+        fprintf(stderr,"Trouble setting socket option to also listen on IPv4 in"
+        " addition to IPv6. Falling back to IPv6 only.\n");
     }
     
     int yes = 1;
-    if (0 > setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes)))
+    if (0 > 
+        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(yes)))
     {
-        fprintf(stderr, "Couldn't set option to re-use addresses. The server will still try to start, but if the address & port has been in use recently (think last minute range), binding may fail.");
+        fprintf(stderr, "Couldn't set option to re-use addresses. The server "
+        "will still try to start, but if the address & port has been in use"
+        " recently (think last minute range), binding may fail.");
     }
     
     // Ok, so now we have a socket. Lets try to bind to it
     if (-1 == bind(sockfd, current->ai_addr, current->ai_addrlen))
     {
         // Couldn't bind
-        fprintf(stderr, "We couldn't bind to the socket. (Or something like that. What is the correct terminology?)\n");
+        fprintf(stderr, "We couldn't bind to the socket. (Or something like tha"
+        "t. What is the correct terminology?)\n");
         exit(16);
     }
     
@@ -260,7 +280,8 @@ int main(int argc, char ** argv)
         {
             if (EINVAL == errno)
             {
-                printf("Sever interrupted while waiting to accept a connection. Shutting down.\n");
+                printf("Sever interrupted while waiting to accept a connection."
+                " Shutting down.\n");
             }
             else
             {
@@ -277,24 +298,30 @@ int main(int argc, char ** argv)
         }
         else
         {
-            thread_data_t * threadData = (thread_data_t *)malloc(sizeof(thread_data_t));
-            thread_list_node * thisThread = (thread_list_node *)malloc(sizeof(thread_list_node));
+            thread_data_t * threadData =
+                (thread_data_t *)malloc(sizeof(thread_data_t));
+            thread_list_node * thisThread =
+                (thread_list_node *)malloc(sizeof(thread_list_node));
             if (NULL != threadData && NULL != thisThread)
             {
                 thisThread->next = threads;
                 threadData->clientFd = acceptfd;
                 thisThread->clientFd = acceptfd;
                 threadData->connections = connections;
-                pthread_create(&(thisThread->threadId), NULL, ThreadServeConnection, threadData);
-                // Now we have a valid thread, add it to the list of ones we'll wait for
+                pthread_create(&(thisThread->threadId), NULL,
+                               ThreadServeConnection, threadData);
+                // Now we have a valid thread, add it to the list of ones we'll
+                // wait for
                 threads = thisThread;
             }
             else if (threadData)
             {
                 free(threadData);
             }
-            else // One of them was NULL, and it wasn't threadData, so it must be thisThread
+            else
             {
+               // One of them was NULL, and it wasn't threadData, so it must be
+               //thisThread
                 free(thisThread);
             }
         }
@@ -310,7 +337,8 @@ int main(int argc, char ** argv)
         threads = threads->next;
         if (pthread_join(thisthread->threadId, NULL) != 0)
         {
-            fprintf(stderr, "Got an error while trying to join thread %ld.\n", thisthread->threadId);
+            fprintf(stderr, "Got an error while trying to join thread %ld.\n",
+                    thisthread->threadId);
         }
         free(thisthread);
     }
