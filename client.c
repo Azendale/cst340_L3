@@ -92,17 +92,20 @@ void parseOptions(int argc, char ** argv, program_options * options)
 }
 
 bool continueLoop = true;
+int sockfd = -1;
 
 void clientSIGINT(int signal)
 {
+    write(1, "Got sigint.\n", 12);
 	continueLoop = false;
+    shutdown(sockfd, SHUT_RD);
 }
 
 void * inputLoop(void * userdata)
 {
 	char sendBuffer[BUFFER_SIZE];
     program_options * options = ((io_thread_data *)(userdata))->options;
-    int sockfd = ((io_thread_data *)(userdata))->socketFd;
+    //int sockfd = ((io_thread_data *)(userdata))->socketFd;
     int usernameSize = strlen(options->clientName);
 	
     if (usernameSize + 3 < BUFFER_SIZE)
@@ -189,7 +192,7 @@ int main(int argc, char ** argv)
         exit(8);
     }
     
-    int sockfd = -1;
+
     
     // Loop through results until one works
     bool connectSuccess = false;
@@ -213,6 +216,7 @@ int main(int argc, char ** argv)
             perror("Trouble getting a socket: ");
         }
     }
+    freeaddrinfo(destInfoResults);
     
 	signal(SIGINT, clientSIGINT);
 	
@@ -220,7 +224,7 @@ int main(int argc, char ** argv)
 	io_thread_data outThreadData;
 	pthread_t inThread, outThread;
 	
-	inThreadData.socketFd = sockfd;
+	//inThreadData.socketFd = sockfd;
     inThreadData.options = &options;
 	outThreadData.socketFd = sockfd;
     outThreadData.options = &options;
