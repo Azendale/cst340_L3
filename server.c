@@ -148,6 +148,7 @@ void * ThreadServeConnection(void * arg)
     }
     if (copyBufferUsed < 0)
     {
+        printf("%d\n", errno);
         fprintf(stderr, "Error while trying to read from client socket fd %d, thread %ld, closing that connection.\n", clientSocket, pthread_self());
     }
     

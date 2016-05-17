@@ -96,9 +96,9 @@ int sockfd = -1;
 
 void clientSIGINT(int signal)
 {
-    write(1, "Got sigint.\n", 12);
+    write(1, "Got SIGINT -- press enter to exit.\n", 36);
     continueLoop = false;
-    shutdown(sockfd, SHUT_RD);
+    shutdown(sockfd, SHUT_RDWR);
 }
 
 void * inputLoop(void * userdata)
