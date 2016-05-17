@@ -206,7 +206,14 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userD
                 }
                 else
                 {
-                    list->head->next->prev = NULL;
+                    if (list->head->next)
+                    {
+                        list->head->next->prev = NULL;
+                    }
+                    else
+                    {
+                        list->tail = list->head;
+                    }
                 }
             }
             else
