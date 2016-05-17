@@ -166,7 +166,7 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userD
 	{
 		if (deleteTest(item->data, userData))
 		{
-			// We need to remove this item
+            // We need to remove this item
 			++removedCount;
 			item_t * toRemove = item;
 			
@@ -198,9 +198,13 @@ int DeleteItemsFilter(linked_list_t l, int (*deleteTest)(int value, void * userD
 					itemPrev->next->prev = itemPrev;
 				}
 			}
+            item = item->next;
 			free(toRemove);
 		}
-		item = item->next;
+		else
+        {
+            item = item->next;
+        }
 	}
 	pthread_mutex_unlock(&(list->lock));
 	
