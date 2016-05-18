@@ -95,8 +95,8 @@ void handleSIGINT(int sig)
 void shutConnection(int fd, void * userdata)
 {
     shutdown(fd, SHUT_RD);
-    write("Chat server says goodbye.\n", 26);
-    shutdown(fd, SHOT_WR);
+    write(fd, "Chat server says goodbye.\n", 26);
+    shutdown(fd, SHUT_WR);
 }
 
 /****************************************************************
