@@ -1,5 +1,15 @@
 #pragma once
-
+/*************************************************************
+ * Author:        Philip Howard
+ * Filename:      list.h
+ * Date Created:  ?
+ * Modifications: 2016-05-17 by Erik Andersen <erik.andersen@oit.edu>
+ **************************************************************
+ * 
+ * Overview:
+ *    list interface, as provided by Phil Howard for CST240 Linked list lab
+ *
+ ************************************************************/
 
 // Error returns
 #define LL_OUT_OF_MEMORY    1

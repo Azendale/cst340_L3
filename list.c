@@ -1,3 +1,19 @@
+/*************************************************************
+ * Author:        Erik Andersen (most function headers by Phil Howard)
+ * Filename:      list.c
+ * Date Created:  Winter Term 2016
+ * Modifications:
+ *  Last modified 2016-05-17 by Erik Andersen <erik.andersen@oit.edu>
+ *   Fixed prev pointers in all functions. Re-wrote the DeleteItemsFilter
+ *   function.
+ **************************************************************
+ * 
+ * Overview:
+ *    Course grained locking Doubly Linked List implementation in C.
+ * 
+ *  -- See list.h for function header blocks
+ *
+ ************************************************************/
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
