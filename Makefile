@@ -18,9 +18,9 @@ clean:
 .c.o:
 	$(CC) $(CFLAGS) -c $? -o $@
 
-server: $(OBJS)
+server: $(OBJS) server.c
 	$(CC) $(CFLAGS) $(OBJS) server.c -lpthread -o server
 
-client: $(OBJS)
+client: $(OBJS) client.c
 	$(CC) $(CFLAGS) $(OBJS) client.c -lpthread -o client
 
