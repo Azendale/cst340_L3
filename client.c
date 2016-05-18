@@ -1,3 +1,27 @@
+/*************************************************************
+ * Author:        Erik Andersen
+ * Filename:      client.c
+ * Date Created:  2016-03-??
+ * Modifications: 2016-05-17 by Erik Andersen <erik.andersen@oit.edu>
+ **************************************************************
+ *
+ * Lab/Assignment: CST340 L3
+ * 
+ * Overview:
+ *    This program is a chat client. It connects to the server specified with
+ *  -s or -i and port -p, with username -n, and allows the user to send chat
+ *  messages. It also displays the chat messages from the server.
+ *
+ * Input:
+ *    Command line arguments -i or -s set the hostname of the server to connect
+ *    to. -p sets the port to connect to. -n sets the username to use.
+ *    Input typed on the console will be sent to the server as a chat message,
+ *    prepended with the username. To exit, a SIGINT must be recieved, followed
+ *    by a newline on the stdin.
+ *
+ * Output:
+ *    Outputs all messages broadcast from the server, including your own.
+ ************************************************************/
 // Written 2016-03 by Erik Andersen
 #include <stdlib.h>
 #include <stdio.h>
