@@ -1,5 +1,24 @@
-// Written 2016-03 by Erik Andersen
-// Modified 2016-04 by Erik Andersen
+/*************************************************************
+ * Author:        Erik Andersen
+ * Filename:      server.c
+ * Date Created:  2016-03-??
+ * Modifications: 2016-05-17 by Erik Andersen <erik.andersen@oit.edu>
+ **************************************************************
+ *
+ * Lab/Assignment: CST340 L3
+ * 
+ * Overview:
+ *    This program is a chat serer. It listens on the port specified with
+ *  -p.
+ *
+ * Input:
+ *    All input comes through incoming connections. Input from those connections
+ *    is broadcast to all connections, including the connection that sent it.
+ *
+ * Output:
+ *    Outputs version informantion and error messages to stdout. All other
+ *    output is a broadcast to each incoming connection.
+ ************************************************************/
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -44,18 +63,51 @@ bool serverShutdown;
 // quit listening
 int sockfd = -1;
 
+/****************************************************************
+ * Handle a SIGINT for the server and trigger listener thread (and then other
+ *  threads) to stop trying to read and to close down
+ * 
+ * Preconditions: (none -- signal handler)
+ *
+ * Postcondition:
+ *      socket that we accept() on closed. serverShutdown set to true to signal
+ *      that we are shutting down
+ * 
+ ****************************************************************/
 void handleSIGINT(int sig)
 {
     // Set the stop signal
     serverShutdown = true;
+    // Close the accept socket
     shutdown(sockfd, SHUT_RD);
 }
 
+/****************************************************************
+ * Callback function to call on each open connection in the list
+ * 
+ * Preconditions: socket passed in FD is not already closed/shut
+ *
+ * Postcondition:
+ *      socket passed in fd is shut to further reads
+ *      socket has goodbye written to it, if possible
+ *      socket is shut to further writes
+ ****************************************************************/
 void shutConnection(int fd, void * userdata)
 {
     shutdown(fd, SHUT_RD);
+    write("Chat server says goodbye.\n", 26);
+    shutdown(fd, SHOT_WR);
 }
 
+/****************************************************************
+ * Compare int and int pointer to see if that have the same data
+ * 
+ * Preconditions: userData is a valid int *
+ *
+ * Postcondition:
+ *  returns 1 if data == *userData
+ *  otherwise, returns 0
+ ****************************************************************/
 int fdRemoveCompare(int data, void * userData)
 {
     int valueToRemove = *(int *)userData;
@@ -70,8 +122,16 @@ int fdRemoveCompare(int data, void * userData)
     }
 }
 
-// Uses getopt style arguments to get the port number, as a cstring
-// don't need to free returned pointer as it points to argv
+/****************************************************************
+ * Uses getopt style arguments to get the port number, as a cstring
+ * don't need to free returned pointer as it points to argv
+ * 
+ * Preconditions: argc is the count of elements in argv, and argv pointers are
+ *  valid
+ *
+ * Postcondition:
+ *  returns a pointer to the argv string that is the port number
+ ****************************************************************/
 char * getPortString(int argc, char ** argv)
 {
     char * portString = NULL;
@@ -98,6 +158,14 @@ typedef struct
     int messageBufUsed;
 } write_message_data;
 
+/****************************************************************
+ * Write a message to a file descriptor
+ * 
+ * Preconditions: outFd is a valid file descriptor that is open for writing
+ *
+ * Postcondition:
+ *  message written to outFd, or error written to stderr
+ ****************************************************************/
 void writeMessage(int outFd, void * userData)
 {
     int messageBufUsed = ((write_message_data *)userData)->messageBufUsed;
@@ -116,8 +184,16 @@ void writeMessage(int outFd, void * userData)
     }
 }
 
-// Serve a new connection. void * arg is actually a file descriptor for the new
-// connection
+/****************************************************************
+ * Serve a new connection to the server.
+ * Write a message to a file descriptor
+ * 
+ * Preconditions: void * arg is a valid thread_data_t pointer
+ * Postcondition:
+ *  arg->clientFd closed.
+ *  input from clientFd written to all fd in arg->connections
+ *  error messages written to stderr
+ ****************************************************************/
 void * ThreadServeConnection(void * arg)
 {
     // Needs to have all fds, as well as ours specifically
@@ -344,6 +420,5 @@ int main(int argc, char ** argv)
     }
     
     free(connections);
-    // pthread_exit(0);
     return 0;
 }
