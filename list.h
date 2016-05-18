@@ -4,6 +4,7 @@
  * Filename:      list.h
  * Date Created:  ?
  * Modifications: 2016-05-17 by Erik Andersen <erik.andersen@oit.edu>
+ *   (added DeleteItemsFilter header)
  **************************************************************
  * 
  * Overview:
