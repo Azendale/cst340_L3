@@ -114,6 +114,17 @@ void parseOptions(int argc, char ** argv, program_options * options)
 bool continueLoop = true;
 int sockfd = -1;
 
+/****************************************************************
+ * Do our best to cause all the threads to cleanly exit. Note that the user
+ *  has to press enter after this to trigger the stdin reading thread to quit
+ * 
+ * Preconditions: (It's a signal handler - hopefully there aren't preconditions)
+ *
+ * Postcondition:
+ *      sockfd shut, signaling end of connection
+ *      continueLoop set to false to stop the loops that check that
+ * 
+ ****************************************************************/
 void clientSIGINT(int signal)
 {
     write(1, "Got SIGINT -- press enter to exit.\n", 36);
@@ -121,6 +132,15 @@ void clientSIGINT(int signal)
     shutdown(sockfd, SHUT_RDWR);
 }
 
+/****************************************************************
+ * Read from stdin and send it (prepended with our username) to the server
+ * 
+ * Preconditions: sockfd open and accepting writes
+ *
+ * Postcondition:
+ *      (none?)
+ * 
+ ****************************************************************/
 void * inputLoop(void * userdata)
 {
     char sendBuffer[BUFFER_SIZE];
@@ -161,6 +181,15 @@ void * inputLoop(void * userdata)
     return NULL;
 }
 
+/****************************************************************
+ * Output from the server socket to stdout
+ * 
+ * Preconditions: sockfd open and accepting reads
+ *
+ * Postcondition:
+ *      Information from sockfd written to stdout
+ * 
+ ****************************************************************/
 void * outputLoop(void * userdata)
 {
     char recvBuffer[BUFFER_SIZE];
@@ -245,7 +274,7 @@ int main(int argc, char ** argv)
     io_thread_data outThreadData;
     pthread_t inThread, outThread;
     
-    //inThreadData.socketFd = sockfd;
+    inThreadData.socketFd = sockfd;
     inThreadData.options = &options;
     outThreadData.socketFd = sockfd;
     outThreadData.options = &options;
